@@ -1,10 +1,7 @@
+
 FROM ghcr.io/engigu/baihu:latest
 
-# 临时诊断：查看上游入口脚本
-RUN echo "========== ENTRYPOINT CONTENT ==========" \
-    && tail -n 60 /app/docker-entrypoint.sh
-
-ENV REMOTE_FOLDER="huggingface:/baihu"
+ENV REMOTE_FOLDER="huggingface:baihu"
 
 RUN apt-get update && apt-get install -y \
     jq \
@@ -23,8 +20,11 @@ RUN rclone config -h
 
 COPY ./restore.sh /
 
-RUN sed -i '/^exec baihu server$/d' /app/docker-entrypoint.sh
-RUN cat /restore.sh >> /app/docker-entrypoint.sh
+# 替换新版 Baihu 启动函数
+RUN sed -i 's/^start_baihu_server "\$@"$/sh \/restore.sh/' /app/docker-entrypoint.sh \
+    && echo "========== 修改后的 ENTRYPOINT ==========" \
+    && tail -n 15 /app/docker-entrypoint.sh \
+    && grep -q '^sh /restore.sh$' /app/docker-entrypoint.sh
 
 RUN mise exec python@3.13.12 -- pip install requests
 RUN mise use -g python@3.13.12
